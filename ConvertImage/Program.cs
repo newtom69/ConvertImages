@@ -10,12 +10,18 @@ namespace Convert
 {
     class Program
     {
+        enum TypeImage
+        {
+            notAImage,
+            WebP,
+            Image
+        }
         static void Main(string[] args)
         {
             string cheminImage = @".\";
             string nomImage;
             string fileExtension;
-            bool flagWebp = false;
+            bool webpToSave = false;
 
             long myCompression = (long)EncoderValue.CompressionNone;
             Encoder myEncoder = Encoder.Compression;
@@ -30,52 +36,33 @@ namespace Convert
             }
 
             ImageCodecInfo myImageCodecInfo;
-            string cheminImageSave;
+            string pathImageSave;
             switch (args[0])
             {
                 case "jpeg":
                 case "jpg":
                     myImageCodecInfo = GetEncoder(ImageFormat.Jpeg);
-                    cheminImageSave = @".\Save_jpg\";
+                    pathImageSave = @".\Save_jpg\";
                     fileExtension = ".jpg";
                     myEncoder = Encoder.Quality;
                     int qualityTemp = 100;
-                    if (args.Length > 1)
-                    {
-                        if (!Int32.TryParse(args[1], out qualityTemp)) qualityTemp = 100;
-                    }
+                    if (args.Length > 1 && !Int32.TryParse(args[1], out qualityTemp)) qualityTemp = 100;
                     long qualityJpg = qualityTemp;
                     myEncoderParameter = new EncoderParameter(myEncoder, qualityJpg);
                     myEncoderParameters.Param[0] = myEncoderParameter;
                     break;
 
                 case "webp":
-                    //TODO IMPLEMENT
-                    flagWebp = true;
-                    cheminImageSave = @".\Save_webp\";
+                    webpToSave = true;
+                    pathImageSave = @".\Save_webp\";
                     fileExtension = ".webp";
-
-                    //TODO TEST
-                    myImageCodecInfo = GetEncoder(ImageFormat.Bmp);
-                    myEncoder = Encoder.Quality;
-                    qualityTemp = 100;
-                    if (args.Length > 1)
-                    {
-                        if (!Int32.TryParse(args[1], out qualityTemp)) qualityTemp = 100;
-                    }
-                    qualityJpg = qualityTemp;
-                    myEncoderParameter = new EncoderParameter(myEncoder, qualityJpg);
-                    myEncoderParameters.Param[0] = myEncoderParameter;
-
-
-
+                    myImageCodecInfo = GetEncoder(ImageFormat.Jpeg); //init only for compil check ok 
                     break;
-
 
                 case "tiff":
                 case "tif":
                     myImageCodecInfo = GetEncoder(ImageFormat.Tiff);
-                    cheminImageSave = @".\Save_tiff\";
+                    pathImageSave = @".\Save_tiff\";
                     myEncoder = Encoder.Compression;
                     myEncoderParameters = new EncoderParameters(1);
                     fileExtension = ".tif";
@@ -107,49 +94,20 @@ namespace Convert
             }
 
 
-
-            Directory.CreateDirectory(cheminImageSave);
+            Directory.CreateDirectory(pathImageSave);
             IEnumerable<string> allFiles = Directory.EnumerateFiles(cheminImage, "*.*");
             foreach (var file in allFiles)
             {
                 string cheminEntierImage = file;
                 nomImage = file.Substring(cheminImage.Length);
                 Console.Write("loading file : " + nomImage + "   ......  ");
-                Bitmap theBitmap;
+
+                Image theImage = new Bitmap(1, 1); //size of image 1x1
+                TypeImage theTypeImage;
                 try
                 {
-                    if (!flagWebp)
-                    {
-                        theBitmap = new Bitmap(cheminEntierImage);
-                    }
-                    else
-                    {
-                        theBitmap = new Bitmap(cheminEntierImage);
-                    }
-                    Console.Write("saving image : " + nomImage + fileExtension + "   ......  ");
-                    try
-                    {
-                        if (flagWebp)
-                        {
-                            //Bitmap theBitmap2 = new Bitmap(cheminEntierImage);
-                            //theBitmap.Dispose();
-                            //FileStream theStream = new FileStream(cheminEntierImage, FileMode.Open);
-                            //WebPFormat imageWebp = new WebPFormat();
-                            
-                            //imageWebp.Save(cheminImageSave + nomImage + fileExtension, theImage,24);
-                        }
-                        else
-                        {
-                            theBitmap.Save(cheminImageSave + nomImage + fileExtension, myImageCodecInfo, myEncoderParameters);
-                            theBitmap.Dispose();
-                        }
-                        Console.WriteLine(" ok");
-                    }
-                    catch (Exception e)
-                    {
-                        Console.WriteLine(nomImage + "error with saving :" + e.Message);
-                    }
-                    
+                    theImage = new Bitmap(cheminEntierImage);
+                    theTypeImage = TypeImage.Image;
                 }
                 catch (Exception e)
                 {
@@ -157,16 +115,33 @@ namespace Convert
                     {
                         FileStream theStream = new FileStream(cheminEntierImage, FileMode.Open);
                         WebPFormat imageWebp = new WebPFormat();
-                        Image theImage = imageWebp.Load(theStream);
-                        Console.Write("saving image : " + nomImage + fileExtension + "   ......  ");
-                        theImage.Save(cheminImageSave + nomImage + fileExtension, myImageCodecInfo, myEncoderParameters);
-                        Console.WriteLine("ok");
+                        theImage = imageWebp.Load(theStream);
+                        theTypeImage = TypeImage.WebP;
                     }
                     catch (Exception e2)
                     {
-                        Console.WriteLine("error with this file" );
+                        theTypeImage = TypeImage.notAImage;
                     }
+                }
 
+                if (theTypeImage != TypeImage.notAImage)
+                {
+                    Console.Write("saving image : " + nomImage + fileExtension + "   ......  ");
+                    if (!webpToSave)
+                    {
+                        theImage.Save(pathImageSave + nomImage + fileExtension, myImageCodecInfo, myEncoderParameters);
+                    }
+                    else if (webpToSave)
+                    {
+                        WebPFormat imageWebp = new WebPFormat();
+                        imageWebp.Save(pathImageSave + nomImage + fileExtension, theImage, 24);
+                    }
+                    theImage.Dispose();
+                    Console.WriteLine("ok");
+                }
+                else //not a image
+                {
+                    Console.WriteLine("error with this file");
                 }
             }
         }
